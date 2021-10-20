@@ -1,0 +1,269 @@
+---
+title: "p8105_hw3_qc2307"
+author: "Qixiang Chen"
+date: "10/18/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggridges)
+```
+
+
+## Problem1
+The goal is to do some exploration of this dataset. To that end, write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations. Then, do or answer the following (commenting on the results of each):
+
+```{r}
+library(p8105.datasets)
+data("instacart")
+instacart_df = janitor::clean_names(instacart) %>%
+  drop_na() %>%
+  distinct()
+instacart_df
+instacart_row = nrow(instacart_df)
+instacart_col = ncol(instacart_df)
+aisleList = 
+  group_by(instacart_df, aisle_id, aisle) %>%
+  summarize(
+    numOfObs = n()
+    )
+instacart_row
+instacart_col
+aisleList
+```
+
+
+1. How many aisles are there, and which aisles are the most items ordered from?
+```{r}
+aisleList %>%
+  arrange(desc(numOfObs))
+aisleList
+numOfAisle = row(aisleList)
+```
+Answer: There are `numOfAisle` aisles here. According to the data frame `aisleList` arranged, the aisle "fresh vegetables" is the most items ordered from. 
+
+
+2. Make a plot that shows the number of items ordered in each aisle, limiting this to aisles with more than 10000 items ordered. Arrange aisles sensibly, and organize your plot so others can read it.
+```{r}
+Items_10000_More = filter(aisleList, numOfObs > 10000)
+aislePlot = ggplot(Items_10000_More, mapping = aes(x = aisle, y = numOfObs)) + 
+  geom_col() + 
+  labs(x = "Aisle", y = "Amount") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+aislePlot
+```
+
+
+3. Make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Include the number of times each item is ordered in your table.
+```{r}
+instacart_selected = select(instacart_df, aisle, product_name)
+most_popular_3bakingIng = filter(instacart_df, aisle == "baking ingredients") %>%
+  count(aisle, product_name, name = "orderedAmount") %>%
+  arrange(desc(orderedAmount)) %>%
+  top_n(3)
+most_popular_3dogFood = filter(instacart_df, aisle == "dog food care") %>%
+  count(aisle, product_name, name = "orderedAmount") %>%
+  arrange(desc(orderedAmount)) %>%
+  top_n(3)
+most_popular_3pkgVegeFruit = filter(instacart_df, aisle == "packaged vegetables fruits") %>%
+  count(aisle, product_name, name = "orderedAmount") %>%
+  arrange(desc(orderedAmount)) %>%
+  top_n(3)
+most_popular_table = bind_rows(most_popular_3bakingIng, most_popular_3dogFood, most_popular_3pkgVegeFruit)
+knitr::kable(most_popular_table)
+```
+
+4. Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table).
+```{r}
+instacart_df
+PLApple_CICream_df = 
+  filter(instacart_df, product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarise(mean_hr = mean(order_hour_of_day)) %>%
+  mutate(
+    order_dow = recode(order_dow, 
+                       "0" = "Sun",
+                       "1" = "Mon",
+                       "2" = "Tue",
+                       "3" = "Wed",
+                       "4" = "Thur",
+                       "5" = "Fri",
+                       "6" = "Sat")
+    ) %>%
+  pivot_wider(
+    names_from = order_dow,
+    values_from = mean_hr
+  )
+knitr::kable(PLApple_CICream_df)
+```
+
+short description of the dataset:
+In this dataset, the size is `r instacart_row` x `r instacart_col`. The key variables include `order_id`, `product_id`, `product_name`, `aisle`, `aisle_id`, and etc. The dataset includes all the observations together. For example, in order 1, the first item that was added to cartorder was Bulgarian Yogurt, which was considered yogurt aisle.
+
+
+
+
+## Problem2
+This problem uses the BRFSS data. DO NOT include this dataset in your local data directory; instead, load the data from the p8105.datasets package.
+
+First, do some data cleaning:
+
+1.format the data to use appropriate variable names;
+2.focus on the “Overall Health” topic
+3.include only responses from “Excellent” to “Poor”
+4.organize responses as a factor taking levels ordered from “Poor” to “Excellent”
+
+Using this dataset, do or answer the following (commenting on the results of each):
+
+1. In 2002, which states were observed at 7 or more locations? What about in 2010?
+2. Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+3. Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
+
+
+Step1: loading the data.
+```{r}
+library(p8105.datasets)
+brfss_smart2010 = p8105.datasets::brfss_smart2010
+```
+
+
+Step2: format the data and deal with the  vector of factor variable.
+```{r}
+brfss_smart2010_formatted = 
+  brfss_smart2010 %>%
+  janitor::clean_names() %>%
+  filter(topic == "Overall Health") %>%
+  mutate(
+    response = as.factor(response)
+  ) %>%
+  filter(response == "Excellent"|response == "Very good"|response =="Good"|response == "Fair"|response == "Poor" )
+brfss_smart2010_formatted$response = factor(brfss_smart2010_formatted$response,
+                                            levels = (c("Excellent", "Very good", "Good", "Fair", "Poor")))
+brfss_smart2010_formatted
+```
+
+1. In 2002, which states were observed at 7 or more locations? What about in 2010?
+```{r}
+#In 2002
+brfss_smart2010_location2002 = filter(brfss_smart2010_formatted, year == "2002") %>%
+  group_by(locationabbr) %>%
+  distinct(locationdesc)  %>%
+  summarise(n = n()) %>%
+  filter(n >= 7)
+knitr::kable(brfss_smart2010_location2002)
+#In 2010
+brfss_smart2010_location2010 = filter(brfss_smart2010_formatted, year == "2010") %>%
+  group_by(locationabbr) %>%
+  distinct(locationdesc)  %>%
+  summarise(n = n()) %>%
+  filter(n >= 7)
+knitr::kable(brfss_smart2010_location2010)
+```
+In year 2002, there were 6 states observed at 7 or more locations. The 6 states were CT, FL, MA, NC, NJ, PA.
+I year 2010, there were 10 states observed at 7 or more locations. The 10 states were CA, CO, FL, MA, MD, NC, NE, NJ, NY, OH.
+
+
+2. Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+```{r}
+brfss_Excellent = 
+  brfss_smart2010_formatted %>%
+  select(year, locationabbr, data_value, response) %>%
+  filter(response == "Excellent") %>%
+  group_by(year, locationabbr) %>%
+  mutate(mean_value = mean(data_value, na.rm = TRUE))
+spaghetti_plot = ggplot(brfss_Excellent, aes(x = year, y = mean_value, group = locationabbr, color = locationabbr)) +
+  labs(x = "Year", y = "Average Value", tittle = "Spaghetti Plot", name = "State") +
+  geom_line()
+spaghetti_plot
+```
+The Spaghetti Plot is shown above. 
+
+
+3. Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
+```{r}
+brfss_Poor_2_Excellent = 
+  brfss_smart2010_formatted %>%
+  filter(locationabbr == "NY", (year == "2006" | year == "2010")) %>%
+  drop_na(response) %>%
+  group_by(locationdesc)
+two_panel_06_10 = ggplot(brfss_Poor_2_Excellent, aes(x = response, y = data_value, group = locationdesc, color = locationdesc)) +
+  geom_line() +
+  facet_grid(. ~ year)
+two_panel_06_10
+```
+The two-panel plot has been shown above. It is about that the distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State, for the years 2006 and 2010 respectively.
+
+
+
+
+## Problem3
+Accelerometers have become an appealing alternative to self-report techniques for studying physical activity in observational studies and clinical trials, largely because of their relative objectivity. During observation periods, the devices measure “activity counts” in a short period; one-minute intervals are common. Because accelerometers can be worn comfortably and unobtrusively, they produce around-the-clock observations.
+
+This problem uses five weeks of accelerometer data collected on a 63 year-old male with BMI 25, who was admitted to the Advanced Cardiac Care Center of Columbia University Medical Center and diagnosed with congestive heart failure (CHF). The data can be downloaded here. In this spreadsheet, variables activity.* are the activity counts for each minute of a 24-hour day starting at midnight.
+
+1. Load, tidy, and otherwise wrangle the data. Your final dataset should include all originally observed variables and values; have useful variable names; include a weekday vs weekend variable; and encode data with reasonable variable classes. Describe the resulting dataset (e.g. what variables exist, how many observations, etc).
+```{r}
+accelerometer_df = read_csv("./data/accel_data.csv") %>%
+  janitor::clean_names() %>%
+  mutate(
+    weekend = case_when(
+      day == "Monday" ~ 0,
+      day == "Tuesday" ~ 0,
+      day == "Wednesday" ~ 0,
+      day == "Thursday" ~ 0,
+      day == "Friday" ~ 0,
+      day == "Saturday" ~ 1, 
+      day == "Sunday" ~ 1
+    )
+  ) %>%
+  relocate(week, day_id, day, weekend)
+accelerometer_df
+accelerometer_df_manipulated = 
+  pivot_longer(accelerometer_df,
+               activity_1:activity_1440,
+               names_to = "activity",
+               values_to = "activity_num",
+               ) %>%
+  separate(activity, into = c("activity","activity_min"), sep = "_") %>%
+  select(-activity)
+accelerometer_df_manipulated
+variable_amount = ncol(accelerometer_df_manipulated)
+observation_amount = nrow(accelerometer_df_manipulated)
+variable_amount
+observation_amount
+```
+After the manipulation to the dataset, there are `r variable_amount` variables and `r observation_amount` observations. The key variables of the manipulated dataset include `week`, `day_id`, `day, weekend`, `activity_min`, `activity_num`.
+
+
+2. Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate accross minutes to create a total activity variable for each day, and create a table showing these totals. Are any trends apparent?
+```{r}
+accelerometer_total = 
+  accelerometer_df_manipulated %>%
+  group_by(day_id) %>%
+  summarise(total_activity = sum(activity_num)) %>%
+  arrange(day_id)
+knitr::kable(accelerometer_total)
+```
+Answer: There isn 't a very apparent trend. Maybe, in Tuesday, Wednesday, and Thursday, the total activity minutes in each of the five weeks does not fluctuate too much. 
+
+
+3. Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
+```{r}
+accelerometer_plot = 
+  accelerometer_df_manipulated %>%
+  ggplot(aes(x = as.numeric(activity_min), y = as.numeric(activity_num), color = day)) +
+  labs(x = "Time (in minute)", y = "Activity", caption = "Accelerometer Activity Plot") +
+  scale_x_continuous(
+    breaks = c(0, 180, 360, 540, 720, 900, 1080, 1260, 1440),
+    labels = c("0:00", "3:00", "6:00", "9:00", "12:00", "15:00", "18:00", "21:00", "23:59"),
+    limits = c(0, 1440)) +
+  geom_smooth() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+accelerometer_plot
+```
+According to this graph, from 3:00 to 10:30 in morning, the activity amount keeps increasing for each day. Then, from 10:30 to 18:00, the activity amount stays unchanged. After that, from 18:00 to 21:00, the activity amount increases again and then, it drops down. For Sunday and Friday, the activity amount will be extremely high during the period from 9:30 to 13:00 and the period from 17:30 to 23:00 respectively. 
