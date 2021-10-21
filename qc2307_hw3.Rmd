@@ -191,8 +191,10 @@ brfss_Poor_2_Excellent =
   filter(locationabbr == "NY", (year == "2006" | year == "2010")) %>%
   drop_na(response) %>%
   group_by(locationdesc)
-two_panel_06_10 = ggplot(brfss_Poor_2_Excellent, aes(x = response, y = data_value, group = locationdesc, color = locationdesc)) +
-  geom_line() +
+two_panel_06_10 = ggplot(brfss_Poor_2_Excellent, aes(x = data_value, group = response, color = response, fill = response)) +
+  geom_density(alpha = 0.3) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(limits = c(0, 50)) +
   facet_grid(. ~ year)
 two_panel_06_10
 ```
